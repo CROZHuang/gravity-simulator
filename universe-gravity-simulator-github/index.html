@@ -1,0 +1,2388 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>宇宙重力场模拟器</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090d;
+      --panel: #10141a;
+      --panel-2: #151a20;
+      --ink: #eef2f0;
+      --muted: #9ba6a2;
+      --line: #293039;
+      --line-soft: rgba(255, 255, 255, 0.08);
+      --accent: #56d6b1;
+      --accent-2: #f2b84b;
+      --danger: #ee6b5d;
+      --cold: #77b7ff;
+      --radius: 8px;
+      font-family: Inter, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      color: var(--ink);
+      background: #181e25;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      min-height: 34px;
+      padding: 0 10px;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: #202832;
+      border-color: #3b4653;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.active {
+      background: color-mix(in srgb, var(--accent) 18%, #141b20);
+      border-color: color-mix(in srgb, var(--accent) 68%, #28343b);
+      color: #f7fffc;
+    }
+
+    button.warning {
+      border-color: color-mix(in srgb, var(--danger) 50%, #2a3037);
+      color: #ffd9d4;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      min-height: 34px;
+      color: var(--ink);
+      background: #0f1419;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 10px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(270px, 320px) 1fr minmax(250px, 300px);
+      grid-template-rows: 52px 1fr;
+      width: 100%;
+      height: 100%;
+    }
+
+    .topbar {
+      grid-column: 1 / 4;
+      display: grid;
+      grid-template-columns: minmax(270px, 320px) 1fr minmax(250px, 300px);
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: #0c1015;
+      min-width: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      padding: 0 16px;
+      height: 100%;
+      border-right: 1px solid var(--line);
+    }
+
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, #07090d 0 30%, transparent 32%),
+        conic-gradient(from 30deg, #f2b84b, #f06f52, #84daf1, #56d6b1, #f2b84b);
+      box-shadow: 0 0 18px rgba(86, 214, 177, 0.32);
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .transport,
+    .status-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 0 12px;
+    }
+
+    .transport {
+      justify-content: center;
+    }
+
+    .icon-button {
+      width: 36px;
+      min-width: 36px;
+      padding: 0;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .wide-button {
+      min-width: 84px;
+    }
+
+    .status-strip {
+      justify-content: flex-end;
+      border-left: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .readout {
+      display: grid;
+      gap: 1px;
+      text-align: right;
+      min-width: 56px;
+    }
+
+    .readout strong {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .sidebar,
+    .inspector {
+      min-height: 0;
+      overflow-y: auto;
+      background: var(--panel);
+      scrollbar-width: thin;
+      scrollbar-color: #394350 transparent;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+    }
+
+    .inspector {
+      border-left: 1px solid var(--line);
+    }
+
+    .section {
+      padding: 14px 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: #cbd5d1;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .body-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .body-button {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 9px;
+      text-align: left;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .body-button span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 82px 1fr 58px;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control-row label {
+      overflow-wrap: anywhere;
+    }
+
+    .value-chip {
+      min-width: 0;
+      color: #dce5e1;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .segmented.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .preset-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .preset-list button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: #05070a;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    .hud {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: calc(100% - 28px);
+      pointer-events: none;
+    }
+
+    .hud-pill {
+      padding: 7px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 7px;
+      color: #dde7e3;
+      background: rgba(9, 13, 17, 0.72);
+      backdrop-filter: blur(10px);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mini-toolbar {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .mini-toolbar button {
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
+      padding: 0;
+      background: rgba(15, 20, 25, 0.78);
+      backdrop-filter: blur(10px);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .metric strong {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #f3f7f5;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .object-list {
+      display: grid;
+      gap: 7px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .object-item {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #11171d;
+      padding: 0 8px;
+      color: #dfe8e4;
+      text-align: left;
+    }
+
+    .object-item.active {
+      border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, #11171d);
+    }
+
+    .object-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .object-meta {
+      color: var(--muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 34px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent);
+    }
+
+    .selected-panel {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .selected-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+      min-width: 0;
+    }
+
+    .selected-name span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inline-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .ghost-note {
+      color: #8d9995;
+      line-height: 1.5;
+      font-size: 12px;
+    }
+
+    .event-log {
+      display: grid;
+      gap: 7px;
+      max-height: 150px;
+      overflow: auto;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .event-log div {
+      border-left: 2px solid #394350;
+      padding-left: 8px;
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 260px 1fr;
+        grid-template-rows: 52px minmax(0, 1fr) 230px;
+      }
+
+      .topbar {
+        grid-column: 1 / 3;
+        grid-template-columns: 260px 1fr;
+      }
+
+      .status-strip {
+        display: none;
+      }
+
+      .inspector {
+        grid-column: 1 / 3;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow-y: auto;
+      }
+
+      .inspector .section {
+        border-right: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+        min-height: 100%;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(440px, 62vh) auto auto;
+      }
+
+      .topbar {
+        grid-column: 1;
+        grid-template-columns: 1fr;
+        min-height: 96px;
+      }
+
+      .brand {
+        height: 46px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .transport {
+        min-height: 50px;
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+
+      .sidebar {
+        grid-row: 3;
+        border-right: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .inspector {
+        grid-column: 1;
+        grid-row: 4;
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <h1>宇宙重力场模拟器</h1>
+      </div>
+      <div class="transport">
+        <button id="playPause" class="icon-button active" title="运行/暂停">⏸</button>
+        <button id="stepOnce" class="icon-button" title="单步">▸</button>
+        <button id="resetView" class="icon-button" title="视图归中">⌖</button>
+        <button id="clearBodies" class="icon-button warning" title="清空天体">⌫</button>
+        <button id="toggleTrails" class="wide-button active" title="轨迹开关">轨迹</button>
+        <button id="toggleField" class="wide-button active" title="重力场开关">场线</button>
+        <button id="toggleRelativity" class="wide-button active" title="后牛顿近似开关">相对论</button>
+      </div>
+      <div class="status-strip">
+        <div class="readout"><span>天体</span><strong id="countReadout">0</strong></div>
+        <div class="readout"><span>时间</span><strong id="timeReadout">0.0</strong></div>
+        <div class="readout"><span>FPS</span><strong id="fpsReadout">--</strong></div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <section class="section">
+        <div class="section-title"><span>天体库</span><span id="bodyTypeHint">黑洞</span></div>
+        <div class="body-grid" id="bodyPalette"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>放置参数</span></div>
+        <div class="control-row">
+          <label for="massSlider">质量</label>
+          <input id="massSlider" type="range" min="1" max="3000" step="1">
+          <span id="massValue" class="value-chip"></span>
+        </div>
+        <div class="control-row">
+          <label for="radiusSlider">半径</label>
+          <input id="radiusSlider" type="range" min="2" max="30" step="0.5">
+          <span id="radiusValue" class="value-chip"></span>
+        </div>
+        <div class="control-row">
+          <label for="spinSlider">自旋</label>
+          <input id="spinSlider" type="range" min="-1" max="1" step="0.01">
+          <span id="spinValue" class="value-chip"></span>
+        </div>
+        <div class="segmented">
+          <button id="dragVelocity" class="active" title="拖拽确定初速度">矢量</button>
+          <button id="autoOrbit" title="按主引力源估算圆轨道">圆轨</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>模拟参数</span></div>
+        <div class="control-row">
+          <label for="speedSlider">倍率</label>
+          <input id="speedSlider" type="range" min="0.1" max="64" step="0.1" value="1">
+          <span id="speedValue" class="value-chip">1.0x</span>
+        </div>
+        <div class="control-row">
+          <label for="gravitySlider">引力</label>
+          <input id="gravitySlider" type="range" min="0.1" max="2.5" step="0.05" value="1">
+          <span id="gravityValue" class="value-chip">1.00</span>
+        </div>
+        <div class="control-row">
+          <label for="relativitySlider">GR</label>
+          <input id="relativitySlider" type="range" min="0" max="8" step="0.1" value="1.6">
+          <span id="relativityValue" class="value-chip">1.6</span>
+        </div>
+        <div class="control-row">
+          <label for="trailSlider">尾迹</label>
+          <input id="trailSlider" type="range" min="40" max="900" step="10" value="360">
+          <span id="trailValue" class="value-chip">360</span>
+        </div>
+        <label class="toggle-row" for="mergeToggle">
+          <span>碰撞合并</span>
+          <input id="mergeToggle" type="checkbox" checked>
+        </label>
+        <label class="toggle-row" for="warpGridToggle">
+          <span>时空网格</span>
+          <input id="warpGridToggle" type="checkbox" checked>
+        </label>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>预设</span></div>
+        <div class="preset-list">
+          <button data-preset="solar"><span>微型太阳系</span><span>☉</span></button>
+          <button data-preset="solarsystem"><span>完整太阳系</span><span>☉</span></button>
+          <button data-preset="binary"><span>双星交换</span><span>∞</span></button>
+          <button data-preset="blackhole"><span>黑洞近掠</span><span>●</span></button>
+          <button data-preset="pulsar"><span>脉冲星伴星</span><span>✦</span></button>
+        </div>
+      </section>
+    </aside>
+
+    <main class="stage">
+      <canvas id="simCanvas"></canvas>
+      <div class="hud">
+        <div class="hud-pill" id="modeHud">黑洞 · 矢量</div>
+        <div class="hud-pill" id="scaleHud">1 px = 1.00 u</div>
+        <div class="hud-pill" id="selectedHud">未选中</div>
+      </div>
+      <div class="mini-toolbar">
+        <button id="zoomOut" title="缩小">−</button>
+        <button id="zoomIn" title="放大">+</button>
+        <button id="exportState" title="导出">⇩</button>
+        <button id="importStateButton" title="导入">⇧</button>
+        <input id="importState" class="file-input" type="file" accept="application/json">
+      </div>
+    </main>
+
+    <aside class="inspector">
+      <section class="section">
+        <div class="section-title"><span>系统</span></div>
+        <div class="metric-grid">
+          <div class="metric"><span>总质量</span><strong id="totalMassMetric">0</strong></div>
+          <div class="metric"><span>总能量</span><strong id="energyMetric">0</strong></div>
+          <div class="metric"><span>动量</span><strong id="momentumMetric">0</strong></div>
+          <div class="metric"><span>最小距离</span><strong id="minDistanceMetric">--</strong></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>选中</span></div>
+        <div id="selectedPanel" class="selected-panel">
+          <div class="ghost-note">在画布或列表中选择一个天体。</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>天体列表</span></div>
+        <div class="object-list" id="objectList"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>事件</span></div>
+        <div class="event-log" id="eventLog"></div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const paletteEl = document.getElementById("bodyPalette");
+      const objectListEl = document.getElementById("objectList");
+      const selectedPanelEl = document.getElementById("selectedPanel");
+      const eventLogEl = document.getElementById("eventLog");
+
+      const els = {
+        playPause: document.getElementById("playPause"),
+        stepOnce: document.getElementById("stepOnce"),
+        resetView: document.getElementById("resetView"),
+        clearBodies: document.getElementById("clearBodies"),
+        toggleTrails: document.getElementById("toggleTrails"),
+        toggleField: document.getElementById("toggleField"),
+        toggleRelativity: document.getElementById("toggleRelativity"),
+        countReadout: document.getElementById("countReadout"),
+        timeReadout: document.getElementById("timeReadout"),
+        fpsReadout: document.getElementById("fpsReadout"),
+        bodyTypeHint: document.getElementById("bodyTypeHint"),
+        massSlider: document.getElementById("massSlider"),
+        radiusSlider: document.getElementById("radiusSlider"),
+        spinSlider: document.getElementById("spinSlider"),
+        massValue: document.getElementById("massValue"),
+        radiusValue: document.getElementById("radiusValue"),
+        spinValue: document.getElementById("spinValue"),
+        dragVelocity: document.getElementById("dragVelocity"),
+        autoOrbit: document.getElementById("autoOrbit"),
+        speedSlider: document.getElementById("speedSlider"),
+        gravitySlider: document.getElementById("gravitySlider"),
+        relativitySlider: document.getElementById("relativitySlider"),
+        trailSlider: document.getElementById("trailSlider"),
+        speedValue: document.getElementById("speedValue"),
+        gravityValue: document.getElementById("gravityValue"),
+        relativityValue: document.getElementById("relativityValue"),
+        trailValue: document.getElementById("trailValue"),
+        mergeToggle: document.getElementById("mergeToggle"),
+        warpGridToggle: document.getElementById("warpGridToggle"),
+        modeHud: document.getElementById("modeHud"),
+        scaleHud: document.getElementById("scaleHud"),
+        selectedHud: document.getElementById("selectedHud"),
+        zoomOut: document.getElementById("zoomOut"),
+        zoomIn: document.getElementById("zoomIn"),
+        exportState: document.getElementById("exportState"),
+        importStateButton: document.getElementById("importStateButton"),
+        importState: document.getElementById("importState"),
+        totalMassMetric: document.getElementById("totalMassMetric"),
+        energyMetric: document.getElementById("energyMetric"),
+        momentumMetric: document.getElementById("momentumMetric"),
+        minDistanceMetric: document.getElementById("minDistanceMetric")
+      };
+
+      const bodyTypes = {
+        blackhole: {
+          label: "黑洞",
+          symbol: "●",
+          color: "#ff7a55",
+          glow: "#ff9a52",
+          visual: "blackhole",
+          mass: 1400,
+          radius: 15,
+          spin: 0.45,
+          density: 5.8,
+          capture: 1.9
+        },
+        pulsar: {
+          label: "脉冲星",
+          symbol: "✦",
+          color: "#7bdfff",
+          glow: "#93f1ff",
+          visual: "pulsar",
+          mass: 520,
+          radius: 8,
+          spin: 0.85,
+          density: 4.4,
+          capture: 1.1
+        },
+        star: {
+          label: "恒星",
+          symbol: "☉",
+          color: "#ffd36a",
+          glow: "#ffe68f",
+          visual: "star",
+          mass: 360,
+          radius: 13,
+          spin: 0.12,
+          density: 1.2,
+          capture: 1
+        },
+        giant: {
+          label: "巨行星",
+          symbol: "◍",
+          color: "#d7a06b",
+          glow: "#f0bd83",
+          visual: "gas",
+          mass: 48,
+          radius: 10,
+          spin: 0.22,
+          density: 0.7,
+          capture: 1
+        },
+        planet: {
+          label: "行星",
+          symbol: "◦",
+          color: "#6ed28f",
+          glow: "#9de7a9",
+          visual: "rocky",
+          mass: 9,
+          radius: 6,
+          spin: 0.08,
+          density: 0.9,
+          capture: 1
+        },
+        comet: {
+          label: "彗星",
+          symbol: "·",
+          color: "#d9e7ff",
+          glow: "#ffffff",
+          visual: "comet",
+          mass: 1.4,
+          radius: 3.2,
+          spin: 0,
+          density: 0.3,
+          capture: 1
+        }
+      };
+
+      const state = {
+        bodies: [],
+        running: true,
+        showTrails: true,
+        showField: true,
+        relativity: true,
+        useAutoOrbit: false,
+        selectedType: "blackhole",
+        selectedId: null,
+        time: 0,
+        fps: 0,
+        lastFrame: performance.now(),
+        frameCounter: 0,
+        fpsTimer: performance.now(),
+        baseDt: 0.006,
+        G: 0.64,
+        c: 58,
+        speed: 1,
+        gravityScale: 1,
+        relativityScale: 1.6,
+        trailLimit: 360,
+        merge: true,
+        warpGrid: true,
+        view: {
+          cx: 0,
+          cy: 0,
+          zoom: 1.0
+        },
+        pointer: {
+          down: false,
+          button: 0,
+          startWorld: null,
+          currentWorld: null,
+          panning: false,
+          panStart: null,
+          originalView: null,
+          draggedBodyId: null,
+          dragMoved: false
+        },
+        preview: null,
+        eventLog: []
+      };
+
+      let nextId = 1;
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function hypot(x, y) {
+        return Math.hypot(x, y);
+      }
+
+      function formatNumber(value, digits = 2) {
+        if (!Number.isFinite(value)) return "--";
+        const abs = Math.abs(value);
+        if (abs >= 100000 || (abs > 0 && abs < 0.001)) return value.toExponential(2);
+        return value.toLocaleString("zh-CN", {
+          maximumFractionDigits: digits,
+          minimumFractionDigits: abs < 10 ? Math.min(1, digits) : 0
+        });
+      }
+
+      function selectedTypeDef() {
+        return bodyTypes[state.selectedType];
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function screenCenter() {
+        const rect = canvas.getBoundingClientRect();
+        return { x: rect.width / 2, y: rect.height / 2 };
+      }
+
+      function worldToScreen(x, y) {
+        const center = screenCenter();
+        return {
+          x: center.x + (x - state.view.cx) * state.view.zoom,
+          y: center.y + (y - state.view.cy) * state.view.zoom
+        };
+      }
+
+      function screenToWorld(x, y) {
+        const rect = canvas.getBoundingClientRect();
+        const center = screenCenter();
+        return {
+          x: state.view.cx + (x - rect.left - center.x) / state.view.zoom,
+          y: state.view.cy + (y - rect.top - center.y) / state.view.zoom
+        };
+      }
+
+      function bodyDisplayRadius(body) {
+        const base = body.radius * Math.pow(Math.max(0.4, body.mass / body.baseMass), 0.08);
+        if (body.type === "blackhole") return Math.max(base, schwarzschildRadius(body) * 3.8);
+        return base;
+      }
+
+      function schwarzschildRadius(body) {
+        return (2 * state.G * state.gravityScale * body.mass) / (state.c * state.c);
+      }
+
+      function visualCompactness(body) {
+        const radius = Math.max(1, body.radius);
+        const density = body.mass / Math.max(1, radius * radius * radius);
+        const rsRatio = schwarzschildRadius(body) / Math.max(1, radius);
+        const typeBoost = body.type === "blackhole" ? 3.4 : body.type === "pulsar" ? 2.3 : body.type === "star" ? 1.25 : 1;
+        return clamp((density * 1.8 + rsRatio * 28) * typeBoost, 0.08, 18);
+      }
+
+      function visualGravityStrength(body) {
+        const radius = Math.max(1, body.radius);
+        const massTerm = Math.sqrt(Math.max(0.1, body.mass)) * 9;
+        const compactTerm = (body.mass / radius) * (0.45 + visualCompactness(body) * 0.1);
+        const typeBoost = body.type === "blackhole" ? 2.6 : body.type === "pulsar" ? 1.85 : body.type === "star" ? 1.15 : body.type === "comet" ? 0.35 : 0.72;
+        return (massTerm + compactTerm) * typeBoost * state.gravityScale;
+      }
+
+      function lensScreenRadius(body) {
+        const r = bodyDisplayRadius(body) * state.view.zoom;
+        const strength = visualGravityStrength(body);
+        return clamp(r * 4 + Math.sqrt(strength) * 5.2 * Math.sqrt(state.view.zoom), 18, 520);
+      }
+
+      function createBody(type, x, y, vx = 0, vy = 0, overrides = {}) {
+        const def = bodyTypes[type];
+        const mass = Number(overrides.mass ?? def.mass);
+        const radius = Number(overrides.radius ?? def.radius);
+        const spin = Number(overrides.spin ?? def.spin);
+        const body = {
+          id: nextId++,
+          type,
+          name: overrides.name ?? `${def.label} ${nextId - 1}`,
+          x,
+          y,
+          vx,
+          vy,
+          ax: 0,
+          ay: 0,
+          mass,
+          radius,
+          spin,
+          baseMass: Math.max(1, mass),
+          color: overrides.color ?? def.color,
+          glow: overrides.glow ?? def.glow,
+          visual: overrides.visual ?? def.visual ?? type,
+          accent: overrides.accent ?? null,
+          ring: Boolean(overrides.ring ?? false),
+          tilt: Number(overrides.tilt ?? 0),
+          trail: [],
+          pulsePhase: Math.random() * Math.PI * 2,
+          alive: true
+        };
+        return body;
+      }
+
+      function addBody(body) {
+        state.bodies.push(body);
+        state.selectedId = body.id;
+        addEvent(`${body.name} 已放置`);
+        computeAccelerations();
+        updateObjectList();
+        updateSelectedPanel();
+      }
+
+      function addEvent(text) {
+        const stamp = `${formatNumber(state.time, 1)}t`;
+        state.eventLog.unshift({ stamp, text });
+        state.eventLog = state.eventLog.slice(0, 18);
+        renderEventLog();
+      }
+
+      function renderEventLog() {
+        eventLogEl.innerHTML = "";
+        if (state.eventLog.length === 0) {
+          const empty = document.createElement("div");
+          empty.textContent = "等待事件";
+          eventLogEl.appendChild(empty);
+          return;
+        }
+        for (const event of state.eventLog) {
+          const row = document.createElement("div");
+          row.textContent = `${event.stamp}  ${event.text}`;
+          eventLogEl.appendChild(row);
+        }
+      }
+
+      function dominantBodyAt(point, excludeMass = 0) {
+        let best = null;
+        let bestScore = 0;
+        for (const body of state.bodies) {
+          if (body.mass <= excludeMass * 0.2) continue;
+          const dx = body.x - point.x;
+          const dy = body.y - point.y;
+          const d2 = dx * dx + dy * dy + 160;
+          const score = body.mass / d2;
+          if (score > bestScore) {
+            bestScore = score;
+            best = body;
+          }
+        }
+        return best;
+      }
+
+      function autoOrbitVelocity(point, mass) {
+        const host = dominantBodyAt(point, mass);
+        if (!host) return { vx: 0, vy: 0 };
+        const dx = point.x - host.x;
+        const dy = point.y - host.y;
+        const r = Math.max(10, hypot(dx, dy));
+        const speed = Math.sqrt((state.G * state.gravityScale * (host.mass + mass)) / r);
+        const direction = host.spin >= 0 ? 1 : -1;
+        const tx = (-dy / r) * direction;
+        const ty = (dx / r) * direction;
+        return {
+          vx: host.vx + tx * speed,
+          vy: host.vy + ty * speed
+        };
+      }
+
+      function computeAccelerations() {
+        for (const body of state.bodies) {
+          body.ax = 0;
+          body.ay = 0;
+        }
+        const G = state.G * state.gravityScale;
+        const softening2 = 28 * 28;
+        for (let i = 0; i < state.bodies.length; i++) {
+          const a = state.bodies[i];
+          for (let j = i + 1; j < state.bodies.length; j++) {
+            const b = state.bodies[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const r2 = dx * dx + dy * dy + softening2;
+            const r = Math.sqrt(r2);
+            const invR3 = 1 / (r2 * r);
+            let correction = 1;
+
+            if (state.relativity) {
+              const rvx = a.vx - b.vx;
+              const rvy = a.vy - b.vy;
+              const h = Math.abs(dx * rvy - dy * rvx);
+              const compactness = G * (a.mass + b.mass) / Math.max(1, state.c * state.c * r);
+              const precession = 3 * h * h / Math.max(1, state.c * state.c * r2);
+              correction += state.relativityScale * clamp(precession + compactness * 6, 0, 10);
+            }
+
+            const force = G * correction * invR3;
+            const ax = force * dx;
+            const ay = force * dy;
+            a.ax += ax * b.mass;
+            a.ay += ay * b.mass;
+            b.ax -= ax * a.mass;
+            b.ay -= ay * a.mass;
+          }
+        }
+      }
+
+      function integrate(dt) {
+        if (state.bodies.length === 0) return;
+        const subSteps = clamp(Math.ceil(state.speed * 1.5), 1, 96);
+        const h = dt / subSteps;
+        for (let step = 0; step < subSteps; step++) {
+          computeAccelerations();
+          for (const body of state.bodies) {
+            body.vx += body.ax * h * 0.5;
+            body.vy += body.ay * h * 0.5;
+            body.x += body.vx * h;
+            body.y += body.vy * h;
+          }
+          computeAccelerations();
+          for (const body of state.bodies) {
+            body.vx += body.ax * h * 0.5;
+            body.vy += body.ay * h * 0.5;
+            body.pulsePhase += (0.04 + Math.abs(body.spin) * 0.16) * h * 60;
+            if (state.showTrails) {
+              body.trail.push({ x: body.x, y: body.y });
+              if (body.trail.length > state.trailLimit) {
+                body.trail.splice(0, body.trail.length - state.trailLimit);
+              }
+            } else if (body.trail.length) {
+              body.trail.length = 0;
+            }
+          }
+          if (state.merge) resolveCollisions();
+          state.time += h * 10;
+        }
+      }
+
+      function resolveCollisions() {
+        const removed = new Set();
+        for (let i = 0; i < state.bodies.length; i++) {
+          const a = state.bodies[i];
+          if (removed.has(a.id)) continue;
+          for (let j = i + 1; j < state.bodies.length; j++) {
+            const b = state.bodies[j];
+            if (removed.has(b.id)) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = hypot(dx, dy);
+            const ar = bodyDisplayRadius(a);
+            const br = bodyDisplayRadius(b);
+            const aCapture = a.type === "blackhole" ? Math.max(ar, schwarzschildRadius(a) * 8 + ar * bodyTypes[a.type].capture) : ar;
+            const bCapture = b.type === "blackhole" ? Math.max(br, schwarzschildRadius(b) * 8 + br * bodyTypes[b.type].capture) : br;
+            if (distance > Math.max(2, (aCapture + bCapture) * 0.56)) continue;
+
+            let primary = a.mass >= b.mass ? a : b;
+            let secondary = primary === a ? b : a;
+            const totalMass = primary.mass + secondary.mass;
+            primary.vx = (primary.vx * primary.mass + secondary.vx * secondary.mass) / totalMass;
+            primary.vy = (primary.vy * primary.mass + secondary.vy * secondary.mass) / totalMass;
+            primary.x = (primary.x * primary.mass + secondary.x * secondary.mass) / totalMass;
+            primary.y = (primary.y * primary.mass + secondary.y * secondary.mass) / totalMass;
+            primary.spin = clamp((primary.spin * primary.mass + secondary.spin * secondary.mass) / totalMass, -1, 1);
+            primary.mass = totalMass;
+            primary.radius = Math.max(primary.radius, Math.pow(primary.radius ** 3 + secondary.radius ** 3, 1 / 3));
+            primary.baseMass = Math.max(primary.baseMass, primary.mass);
+            primary.trail = primary.trail.concat(secondary.trail).slice(-state.trailLimit);
+            removed.add(secondary.id);
+
+            const verb = primary.type === "blackhole" ? "吞噬" : "合并";
+            addEvent(`${primary.name} ${verb} ${secondary.name}`);
+            if (state.selectedId === secondary.id) state.selectedId = primary.id;
+          }
+        }
+        if (removed.size) {
+          state.bodies = state.bodies.filter(body => !removed.has(body.id));
+          updateObjectList();
+          updateSelectedPanel();
+        }
+      }
+
+      function computeMetrics() {
+        let totalMass = 0;
+        let kinetic = 0;
+        let potential = 0;
+        let px = 0;
+        let py = 0;
+        let minDistance = Infinity;
+        const G = state.G * state.gravityScale;
+        for (const body of state.bodies) {
+          totalMass += body.mass;
+          kinetic += 0.5 * body.mass * (body.vx * body.vx + body.vy * body.vy);
+          px += body.mass * body.vx;
+          py += body.mass * body.vy;
+        }
+        for (let i = 0; i < state.bodies.length; i++) {
+          for (let j = i + 1; j < state.bodies.length; j++) {
+            const a = state.bodies[i];
+            const b = state.bodies[j];
+            const d = Math.max(1, hypot(a.x - b.x, a.y - b.y));
+            potential -= G * a.mass * b.mass / d;
+            minDistance = Math.min(minDistance, d);
+          }
+        }
+        return {
+          totalMass,
+          energy: kinetic + potential,
+          momentum: hypot(px, py),
+          minDistance
+        };
+      }
+
+      function draw() {
+        const rect = canvas.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        ctx.clearRect(0, 0, width, height);
+        drawSpaceBackground(width, height);
+        if (state.warpGrid) drawWarpGrid(width, height);
+        if (state.warpGrid) drawCurvatureLenses();
+        if (state.showField) drawField(width, height);
+        if (state.showTrails) drawTrails();
+        drawBodies();
+        drawPreview();
+      }
+
+      function drawSpaceBackground(width, height) {
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, "#05070a");
+        gradient.addColorStop(0.48, "#09100f");
+        gradient.addColorStop(1, "#0b0908");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        const seed = 113;
+        ctx.save();
+        ctx.globalAlpha = 0.62;
+        for (let i = 0; i < 130; i++) {
+          const x = (Math.sin(i * 91.7 + seed) * 0.5 + 0.5) * width;
+          const y = (Math.sin(i * 37.3 + 9) * 0.5 + 0.5) * height;
+          const size = (Math.sin(i * 13.1) * 0.5 + 0.5) * 1.2 + 0.35;
+          ctx.fillStyle = i % 7 === 0 ? "#ffdca1" : i % 5 === 0 ? "#a7e8ff" : "#ffffff";
+          ctx.fillRect(x, y, size, size);
+        }
+        ctx.restore();
+      }
+
+      function warpedScreenPoint(worldX, worldY) {
+        let ox = 0;
+        let oy = 0;
+        for (const body of state.bodies) {
+          const dx = body.x - worldX;
+          const dy = body.y - worldY;
+          const radius = Math.max(4, bodyDisplayRadius(body));
+          const d2 = dx * dx + dy * dy + radius * radius * 4;
+          const d = Math.sqrt(d2);
+          const strength = visualGravityStrength(body);
+          const pull = clamp(strength / Math.pow(d + radius * 1.7, 1.08), 0, radius * (body.type === "blackhole" ? 2.8 : 1.35));
+          const spinCurl = body.spin * visualCompactness(body) * clamp(strength / (d2 + radius * radius), -1.6, 1.6);
+          ox += (dx / d) * pull;
+          oy += (dy / d) * pull;
+          ox += (-dy / d) * spinCurl;
+          oy += (dx / d) * spinCurl;
+        }
+        return worldToScreen(worldX + ox, worldY + oy);
+      }
+
+      function drawWarpGrid(width, height) {
+        const worldLeft = screenToWorld(0, 0).x;
+        const worldRight = screenToWorld(width, 0).x;
+        const worldTop = screenToWorld(0, 0).y;
+        const worldBottom = screenToWorld(0, height).y;
+        const step = chooseGridStep((worldRight - worldLeft) / 13);
+        const startX = Math.floor(worldLeft / step) * step;
+        const endX = Math.ceil(worldRight / step) * step;
+        const startY = Math.floor(worldTop / step) * step;
+        const endY = Math.ceil(worldBottom / step) * step;
+
+        ctx.save();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(154, 210, 196, 0.12)";
+        for (let x = startX; x <= endX; x += step) {
+          ctx.beginPath();
+          for (let y = startY; y <= endY; y += step / 3) {
+            const p = warpedScreenPoint(x, y);
+            if (y === startY) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(242, 184, 75, 0.10)";
+        for (let y = startY; y <= endY; y += step) {
+          ctx.beginPath();
+          for (let x = startX; x <= endX; x += step / 3) {
+            const p = warpedScreenPoint(x, y);
+            if (x === startX) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawCurvatureLenses() {
+        if (state.bodies.length === 0) return;
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        const sorted = [...state.bodies].sort((a, b) => a.mass - b.mass);
+        for (const body of sorted) {
+          const p = worldToScreen(body.x, body.y);
+          const r = Math.max(2, bodyDisplayRadius(body) * state.view.zoom);
+          const lensRadius = lensScreenRadius(body);
+          const compactness = visualCompactness(body);
+          const alpha = clamp(0.025 + Math.log1p(visualGravityStrength(body)) * 0.018 + compactness * 0.018, 0.035, 0.34);
+
+          const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, lensRadius);
+          glow.addColorStop(0, hexToRgba(body.glow, alpha));
+          glow.addColorStop(0.48, hexToRgba(body.color, alpha * 0.28));
+          glow.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, lensRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          const contourCount = body.type === "blackhole" ? 6 : body.type === "pulsar" ? 5 : body.mass > 80 ? 4 : 2;
+          for (let i = 1; i <= contourCount; i++) {
+            const radius = r * (1.45 + i * 1.55) + Math.sqrt(visualGravityStrength(body)) * i * 0.7;
+            if (radius > lensRadius * 1.04) break;
+            ctx.strokeStyle = hexToRgba(body.glow, alpha * (0.7 / i));
+            ctx.lineWidth = Math.max(0.8, 1.5 - i * 0.12);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function chooseGridStep(target) {
+        const powers = [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560];
+        return powers.find(value => value >= target) ?? 5120;
+      }
+
+      function drawField(width, height) {
+        if (state.bodies.length === 0) return;
+        const spacing = clamp(70 / Math.sqrt(state.view.zoom), 42, 92);
+        ctx.save();
+        ctx.lineWidth = 1.1;
+        for (let sx = spacing * 0.5; sx < width; sx += spacing) {
+          for (let sy = spacing * 0.5; sy < height; sy += spacing) {
+            const p = screenToWorld(sx, sy);
+            let ax = 0;
+            let ay = 0;
+            let potential = 0;
+            for (const body of state.bodies) {
+              const dx = body.x - p.x;
+              const dy = body.y - p.y;
+              const radius = Math.max(4, bodyDisplayRadius(body));
+              const r2 = dx * dx + dy * dy + radius * radius * 3;
+              const r = Math.sqrt(r2);
+              const pull = (state.G * state.gravityScale * body.mass) / r2;
+              const visualPull = visualGravityStrength(body) / Math.max(1, r2);
+              ax += (dx / r) * pull;
+              ay += (dy / r) * pull;
+              potential += visualPull;
+            }
+            const mag = hypot(ax, ay);
+            if (mag <= 0.0001) continue;
+            const len = clamp(Math.log1p(mag * 1.8) * 9, 4, 24);
+            const ux = ax / mag;
+            const uy = ay / mag;
+            const alpha = clamp(0.06 + Math.log1p(mag) * 0.16 + Math.log1p(potential) * 0.2, 0.08, 0.62);
+            const hot = clamp(Math.log1p(potential * 6), 0, 1);
+            const red = Math.round(126 + hot * 105);
+            const green = Math.round(216 - hot * 28);
+            const blue = Math.round(190 - hot * 95);
+            ctx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+            ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha + 0.08})`;
+            ctx.beginPath();
+            ctx.moveTo(sx - ux * len * 0.5, sy - uy * len * 0.5);
+            ctx.lineTo(sx + ux * len * 0.5, sy + uy * len * 0.5);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(sx + ux * len * 0.5, sy + uy * len * 0.5);
+            ctx.lineTo(sx + ux * len * 0.25 - uy * 3, sy + uy * len * 0.25 + ux * 3);
+            ctx.lineTo(sx + ux * len * 0.25 + uy * 3, sy + uy * len * 0.25 - ux * 3);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawTrails() {
+        ctx.save();
+        ctx.lineWidth = 1.2;
+        for (const body of state.bodies) {
+          if (body.trail.length < 2) continue;
+          ctx.beginPath();
+          for (let i = 0; i < body.trail.length; i++) {
+            const p = worldToScreen(body.trail[i].x, body.trail[i].y);
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.strokeStyle = hexToRgba(body.color, clamp(body.trail.length / state.trailLimit, 0.1, 0.72));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBodies() {
+        ctx.save();
+        for (const body of state.bodies) {
+          const p = worldToScreen(body.x, body.y);
+          const r = Math.max(2.2, bodyDisplayRadius(body) * state.view.zoom);
+          const selected = body.id === state.selectedId;
+          drawBodyAura(body, p, r);
+
+          if (body.type === "blackhole") {
+            drawBlackHole(body, p, r, selected);
+          } else if (body.type === "pulsar") {
+            drawPulsar(body, p, r, selected);
+          } else {
+            drawOrdinaryBody(body, p, r, selected);
+          }
+          drawVelocityNeedle(body, p, r);
+        }
+        ctx.restore();
+      }
+
+      function drawBodyAura(body, p, r) {
+        const lens = lensScreenRadius(body);
+        const compactness = visualCompactness(body);
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, Math.max(r * 5.2, lens * 0.45));
+        glow.addColorStop(0, hexToRgba(body.glow, clamp(0.12 + compactness * 0.04, 0.18, body.type === "blackhole" ? 0.54 : 0.32)));
+        glow.addColorStop(0.42, hexToRgba(body.color, body.type === "blackhole" ? 0.14 : 0.08));
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(r * 5.2, lens * 0.45), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawBlackHole(body, p, r, selected) {
+        const angle = body.pulsePhase * 0.18 * Math.sign(body.spin || 1);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(angle);
+        const compactness = visualCompactness(body);
+        ctx.strokeStyle = "rgba(255, 153, 84, 0.82)";
+        ctx.lineWidth = Math.max(1, r * 0.18);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * (2.05 + compactness * 0.03), r * 0.72, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(123, 223, 255, 0.36)";
+        ctx.lineWidth = Math.max(1, r * 0.07);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 2.65, r * 0.92, 0, Math.PI * 0.12, Math.PI * 1.12);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 241, 199, 0.22)";
+        ctx.lineWidth = Math.max(1, r * 0.04);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 3.2, r * 1.05, 0, Math.PI * 1.06, Math.PI * 2.04);
+        ctx.stroke();
+        ctx.restore();
+
+        const photon = ctx.createRadialGradient(p.x, p.y, r * 0.72, p.x, p.y, r * 1.55);
+        photon.addColorStop(0, "rgba(0,0,0,0)");
+        photon.addColorStop(0.68, "rgba(255,255,255,0.16)");
+        photon.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = photon;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 1.55, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#020304";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = selected ? "#ffffff" : "rgba(255,255,255,0.18)";
+        ctx.lineWidth = selected ? 2 : 1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 1.08, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawPulsar(body, p, r, selected) {
+        const beamAngle = body.pulsePhase * (body.spin >= 0 ? 1 : -1);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(beamAngle);
+        const beam = ctx.createLinearGradient(-r * 8, 0, r * 8, 0);
+        beam.addColorStop(0, "rgba(123, 223, 255, 0)");
+        beam.addColorStop(0.45, "rgba(123, 223, 255, 0.18)");
+        beam.addColorStop(0.5, "rgba(255, 255, 255, 0.58)");
+        beam.addColorStop(0.55, "rgba(123, 223, 255, 0.18)");
+        beam.addColorStop(1, "rgba(123, 223, 255, 0)");
+        ctx.fillStyle = beam;
+        ctx.beginPath();
+        ctx.moveTo(-r * 9, -r * 0.18);
+        ctx.lineTo(r * 9, -r * 0.18);
+        ctx.lineTo(r * 9, r * 0.18);
+        ctx.lineTo(-r * 9, r * 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        drawOrdinaryBody(body, p, r, selected);
+      }
+
+      function drawOrdinaryBody(body, p, r, selected) {
+        if (body.visual === "comet") drawCometTail(body, p, r);
+        if (body.ring) drawPlanetRing(body, p, r, false);
+
+        const gradient = ctx.createRadialGradient(p.x - r * 0.38, p.y - r * 0.42, r * 0.1, p.x, p.y, r);
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(0.18, body.glow);
+        gradient.addColorStop(1, body.color);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawSurfaceDetails(body, p, r);
+
+        if (body.ring) drawPlanetRing(body, p, r, true);
+
+        ctx.strokeStyle = selected ? "#ffffff" : "rgba(255,255,255,0.18)";
+        ctx.lineWidth = selected ? 2 : 1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r + (selected ? 3 : 0), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawSurfaceDetails(body, p, r) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.clip();
+
+        if (body.visual === "star") {
+          drawStarGranules(body, p, r);
+        } else if (body.visual === "gas" || body.visual === "ice") {
+          drawGasBands(body, p, r, body.visual === "ice" ? 0.28 : 0.5);
+        } else if (body.visual === "earth") {
+          drawEarthLikeSurface(body, p, r);
+        } else if (["mars", "venus", "mercury", "pluto", "rocky"].includes(body.visual)) {
+          drawRockySurface(body, p, r);
+        }
+
+        const shade = ctx.createRadialGradient(p.x - r * 0.48, p.y - r * 0.45, r * 0.2, p.x + r * 0.62, p.y + r * 0.55, r * 1.18);
+        shade.addColorStop(0, "rgba(255,255,255,0.16)");
+        shade.addColorStop(0.42, "rgba(255,255,255,0)");
+        shade.addColorStop(1, body.visual === "star" ? "rgba(170,76,25,0.12)" : "rgba(0,0,0,0.42)");
+        ctx.fillStyle = shade;
+        ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+        ctx.restore();
+      }
+
+      function drawStarGranules(body, p, r) {
+        ctx.save();
+        ctx.globalAlpha = 0.48;
+        for (let i = 0; i < 12; i++) {
+          const a = body.pulsePhase * 0.05 + i * 2.399;
+          const rr = r * (0.18 + ((i * 37) % 61) / 100);
+          const x = p.x + Math.cos(a) * rr;
+          const y = p.y + Math.sin(a * 1.7) * rr * 0.82;
+          ctx.fillStyle = i % 2 ? "rgba(255, 242, 172, 0.38)" : "rgba(255, 132, 68, 0.22)";
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(1, r * (0.08 + (i % 4) * 0.018)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawGasBands(body, p, r, opacity) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(body.tilt || -0.16);
+        for (let i = -3; i <= 3; i++) {
+          const y = i * r * 0.22;
+          const bandHeight = r * (0.12 + (Math.abs(i) % 2) * 0.035);
+          ctx.fillStyle = i % 2 === 0
+            ? hexToRgba(body.accent ?? "#fff1c7", opacity)
+            : "rgba(62, 44, 36, 0.18)";
+          ctx.beginPath();
+          ctx.ellipse(0, y, r * 1.04, bandHeight, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (body.visual === "gas" && r > 7) {
+          ctx.fillStyle = "rgba(150, 75, 52, 0.34)";
+          ctx.beginPath();
+          ctx.ellipse(r * 0.35, r * 0.16, r * 0.22, r * 0.11, -0.22, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawEarthLikeSurface(body, p, r) {
+        ctx.fillStyle = "rgba(31, 112, 80, 0.72)";
+        for (const blob of [
+          [-0.34, -0.14, 0.28, 0.18, -0.4],
+          [0.22, 0.12, 0.34, 0.2, 0.28],
+          [0.02, -0.38, 0.18, 0.1, 0.2],
+          [-0.12, 0.38, 0.22, 0.12, -0.3]
+        ]) {
+          ctx.beginPath();
+          ctx.ellipse(p.x + blob[0] * r, p.y + blob[1] * r, blob[2] * r, blob[3] * r, blob[4], 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = "rgba(255,255,255,0.42)";
+        ctx.lineWidth = Math.max(0.7, r * 0.05);
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.ellipse(p.x + i * r * 0.1, p.y - i * r * 0.18, r * 0.72, r * 0.16, i * 0.55, 0, Math.PI * 1.6);
+          ctx.stroke();
+        }
+      }
+
+      function drawRockySurface(body, p, r) {
+        const spotColor = body.visual === "mars" ? "rgba(85, 32, 22, 0.42)" : body.visual === "venus" ? "rgba(255, 236, 164, 0.26)" : "rgba(0,0,0,0.22)";
+        ctx.fillStyle = spotColor;
+        for (let i = 0; i < 7; i++) {
+          const a = i * 2.17 + body.id;
+          const rr = r * (0.2 + ((i * 19) % 45) / 100);
+          const x = p.x + Math.cos(a) * rr;
+          const y = p.y + Math.sin(a * 1.31) * rr;
+          ctx.beginPath();
+          ctx.ellipse(x, y, r * (0.07 + (i % 3) * 0.02), r * (0.035 + (i % 2) * 0.02), a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function drawPlanetRing(body, p, r, front) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(body.tilt || -0.28);
+        ctx.lineWidth = Math.max(1, r * 0.16);
+        ctx.strokeStyle = front ? "rgba(241, 221, 171, 0.72)" : "rgba(173, 142, 106, 0.38)";
+        ctx.beginPath();
+        if (front) ctx.ellipse(0, 0, r * 2.35, r * 0.62, 0, 0, Math.PI);
+        else ctx.ellipse(0, 0, r * 2.35, r * 0.62, 0, Math.PI, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = Math.max(1, r * 0.05);
+        ctx.strokeStyle = front ? "rgba(255,255,255,0.48)" : "rgba(255,255,255,0.18)";
+        ctx.beginPath();
+        if (front) ctx.ellipse(0, 0, r * 2.75, r * 0.74, 0, 0.08, Math.PI - 0.08);
+        else ctx.ellipse(0, 0, r * 2.75, r * 0.74, 0, Math.PI + 0.08, Math.PI * 2 - 0.08);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCometTail(body, p, r) {
+        const speed = hypot(body.vx, body.vy);
+        if (speed < 0.02) return;
+        const ux = -body.vx / speed;
+        const uy = -body.vy / speed;
+        const tailLength = clamp(speed * 48 * state.view.zoom + r * 5, r * 4, r * 16);
+        const gradient = ctx.createLinearGradient(p.x, p.y, p.x + ux * tailLength, p.y + uy * tailLength);
+        gradient.addColorStop(0, "rgba(226, 244, 255, 0.42)");
+        gradient.addColorStop(1, "rgba(226, 244, 255, 0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(p.x + uy * r * 0.55, p.y - ux * r * 0.55);
+        ctx.lineTo(p.x + ux * tailLength, p.y + uy * tailLength);
+        ctx.lineTo(p.x - uy * r * 0.55, p.y + ux * r * 0.55);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawVelocityNeedle(body, p, r) {
+        const speed = hypot(body.vx, body.vy);
+        if (speed < 0.04) return;
+        const len = clamp(speed * state.view.zoom * 20, 8, 50);
+        const ux = body.vx / speed;
+        const uy = body.vy / speed;
+        ctx.strokeStyle = "rgba(255,255,255,0.42)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + ux * (r + len), p.y + uy * (r + len));
+        ctx.stroke();
+      }
+
+      function drawPreview() {
+        if (!state.preview) return;
+        const def = selectedTypeDef();
+        const start = worldToScreen(state.preview.x, state.preview.y);
+        const end = state.preview.end ? worldToScreen(state.preview.end.x, state.preview.end.y) : start;
+        const radius = Math.max(3, Number(els.radiusSlider.value) * state.view.zoom);
+
+        ctx.save();
+        ctx.globalAlpha = 0.86;
+        ctx.strokeStyle = def.color;
+        ctx.fillStyle = hexToRgba(def.color, 0.42);
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if (!state.useAutoOrbit) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.fillStyle = "#ffffff";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.stroke();
+          const dx = end.x - start.x;
+          const dy = end.y - start.y;
+          const len = Math.max(1, hypot(dx, dy));
+          const ux = dx / len;
+          const uy = dy / len;
+          ctx.beginPath();
+          ctx.moveTo(end.x, end.y);
+          ctx.lineTo(end.x - ux * 11 - uy * 5, end.y - uy * 11 + ux * 5);
+          ctx.lineTo(end.x - ux * 11 + uy * 5, end.y - uy * 11 - ux * 5);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          const velocity = autoOrbitVelocity(state.preview, Number(els.massSlider.value));
+          const speed = hypot(velocity.vx, velocity.vy);
+          if (speed > 0) {
+            const ux = velocity.vx / speed;
+            const uy = velocity.vy / speed;
+            ctx.strokeStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(start.x + ux * 42, start.y + uy * 42);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function hexToRgba(hex, alpha) {
+        const normalized = hex.replace("#", "");
+        const value = Number.parseInt(normalized, 16);
+        const r = (value >> 16) & 255;
+        const g = (value >> 8) & 255;
+        const b = value & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function findBodyAt(worldPoint) {
+        let best = null;
+        let bestDistance = Infinity;
+        for (const body of state.bodies) {
+          const distance = hypot(body.x - worldPoint.x, body.y - worldPoint.y);
+          const hitRadius = Math.max(10 / state.view.zoom, bodyDisplayRadius(body) * 1.4);
+          if (distance <= hitRadius && distance < bestDistance) {
+            best = body;
+            bestDistance = distance;
+          }
+        }
+        return best;
+      }
+
+      function setSelectedBody(id) {
+        state.selectedId = id;
+        updateObjectList();
+        updateSelectedPanel();
+      }
+
+      function getSelectedBody() {
+        return state.bodies.find(body => body.id === state.selectedId) ?? null;
+      }
+
+      function updateCreationControlsFromType() {
+        const def = selectedTypeDef();
+        els.massSlider.value = def.mass;
+        els.radiusSlider.value = def.radius;
+        els.spinSlider.value = def.spin;
+        els.bodyTypeHint.textContent = def.label;
+        updateControlLabels();
+        updatePaletteButtons();
+      }
+
+      function updateControlLabels() {
+        els.massValue.textContent = formatNumber(Number(els.massSlider.value), 0);
+        els.radiusValue.textContent = formatNumber(Number(els.radiusSlider.value), 1);
+        els.spinValue.textContent = Number(els.spinSlider.value).toFixed(2);
+        els.speedValue.textContent = `${Number(els.speedSlider.value).toFixed(1)}x`;
+        els.gravityValue.textContent = Number(els.gravitySlider.value).toFixed(2);
+        els.relativityValue.textContent = Number(els.relativitySlider.value).toFixed(1);
+        els.trailValue.textContent = String(Number(els.trailSlider.value));
+        state.speed = Number(els.speedSlider.value);
+        state.gravityScale = Number(els.gravitySlider.value);
+        state.relativityScale = Number(els.relativitySlider.value);
+        state.trailLimit = Number(els.trailSlider.value);
+        state.merge = els.mergeToggle.checked;
+        state.warpGrid = els.warpGridToggle.checked;
+        els.modeHud.textContent = `${selectedTypeDef().label} · ${state.useAutoOrbit ? "圆轨" : "矢量"}`;
+        els.scaleHud.textContent = `1 px = ${formatNumber(1 / state.view.zoom, 2)} u`;
+      }
+
+      function updatePaletteButtons() {
+        for (const button of paletteEl.querySelectorAll("button")) {
+          button.classList.toggle("active", button.dataset.type === state.selectedType);
+        }
+      }
+
+      function updateToggles() {
+        els.playPause.textContent = state.running ? "⏸" : "▶";
+        els.playPause.classList.toggle("active", state.running);
+        els.toggleTrails.classList.toggle("active", state.showTrails);
+        els.toggleField.classList.toggle("active", state.showField);
+        els.toggleRelativity.classList.toggle("active", state.relativity);
+        els.dragVelocity.classList.toggle("active", !state.useAutoOrbit);
+        els.autoOrbit.classList.toggle("active", state.useAutoOrbit);
+      }
+
+      function updateObjectList() {
+        objectListEl.innerHTML = "";
+        if (state.bodies.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "ghost-note";
+          empty.textContent = "暂无天体";
+          objectListEl.appendChild(empty);
+          return;
+        }
+        for (const body of state.bodies) {
+          const row = document.createElement("button");
+          row.className = "object-item";
+          row.classList.toggle("active", body.id === state.selectedId);
+          row.dataset.id = String(body.id);
+          row.title = body.name;
+
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.color = body.color;
+          swatch.style.background = body.color;
+
+          const name = document.createElement("span");
+          name.className = "object-name";
+          name.textContent = body.name;
+
+          const meta = document.createElement("span");
+          meta.className = "object-meta";
+          meta.textContent = formatNumber(body.mass, 0);
+
+          row.append(swatch, name, meta);
+          row.addEventListener("click", () => setSelectedBody(body.id));
+          objectListEl.appendChild(row);
+        }
+      }
+
+      function updateSelectedPanel() {
+        const body = getSelectedBody();
+        selectedPanelEl.innerHTML = "";
+        if (!body) {
+          const empty = document.createElement("div");
+          empty.className = "ghost-note";
+          empty.textContent = "在画布或列表中选择一个天体。";
+          selectedPanelEl.appendChild(empty);
+          els.selectedHud.textContent = "未选中";
+          return;
+        }
+
+        const name = document.createElement("div");
+        name.className = "selected-name";
+        const swatch = document.createElement("span");
+        swatch.className = "swatch";
+        swatch.style.color = body.color;
+        swatch.style.background = body.color;
+        const label = document.createElement("span");
+        label.textContent = body.name;
+        name.append(swatch, label);
+
+        const metrics = [
+          ["类型", bodyTypes[body.type].label],
+          ["质量", formatNumber(body.mass, 1)],
+          ["半径", formatNumber(bodyDisplayRadius(body), 2)],
+          ["速度", formatNumber(hypot(body.vx, body.vy), 3)],
+          ["位置 X", formatNumber(body.x, 1)],
+          ["位置 Y", formatNumber(body.y, 1)]
+        ];
+        const grid = document.createElement("div");
+        grid.className = "metric-grid";
+        for (const [key, value] of metrics) {
+          const item = document.createElement("div");
+          item.className = "metric";
+          const k = document.createElement("span");
+          k.textContent = key;
+          const v = document.createElement("strong");
+          v.textContent = value;
+          item.append(k, v);
+          grid.appendChild(item);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "inline-actions";
+        const focus = document.createElement("button");
+        focus.textContent = "居中";
+        focus.title = "视图居中到选中天体";
+        focus.addEventListener("click", () => {
+          state.view.cx = body.x;
+          state.view.cy = body.y;
+        });
+        const remove = document.createElement("button");
+        remove.textContent = "删除";
+        remove.className = "warning";
+        remove.title = "删除选中天体";
+        remove.addEventListener("click", () => {
+          state.bodies = state.bodies.filter(item => item.id !== body.id);
+          addEvent(`${body.name} 已移除`);
+          state.selectedId = state.bodies[0]?.id ?? null;
+          updateObjectList();
+          updateSelectedPanel();
+        });
+        actions.append(focus, remove);
+        selectedPanelEl.append(name, grid, actions);
+        els.selectedHud.textContent = `${body.name} · v ${formatNumber(hypot(body.vx, body.vy), 2)}`;
+      }
+
+      function updateMetrics() {
+        const metrics = computeMetrics();
+        els.totalMassMetric.textContent = formatNumber(metrics.totalMass, 1);
+        els.energyMetric.textContent = formatNumber(metrics.energy, 2);
+        els.momentumMetric.textContent = formatNumber(metrics.momentum, 2);
+        els.minDistanceMetric.textContent = Number.isFinite(metrics.minDistance) ? formatNumber(metrics.minDistance, 1) : "--";
+        els.countReadout.textContent = String(state.bodies.length);
+        els.timeReadout.textContent = formatNumber(state.time, 1);
+        els.fpsReadout.textContent = String(Math.round(state.fps));
+      }
+
+      function resetViewToSystem() {
+        if (state.bodies.length === 0) {
+          state.view.cx = 0;
+          state.view.cy = 0;
+          state.view.zoom = 1;
+          return;
+        }
+        let total = 0;
+        let cx = 0;
+        let cy = 0;
+        for (const body of state.bodies) {
+          total += body.mass;
+          cx += body.x * body.mass;
+          cy += body.y * body.mass;
+        }
+        state.view.cx = cx / total;
+        state.view.cy = cy / total;
+        let extent = 100;
+        for (const body of state.bodies) {
+          extent = Math.max(extent, hypot(body.x - state.view.cx, body.y - state.view.cy));
+        }
+        const rect = canvas.getBoundingClientRect();
+        state.view.zoom = clamp(Math.min(rect.width, rect.height) / (extent * 2.4), 0.12, 3.5);
+      }
+
+      function clearBodies() {
+        state.bodies = [];
+        state.selectedId = null;
+        state.time = 0;
+        addEvent("系统已清空");
+        updateObjectList();
+        updateSelectedPanel();
+      }
+
+      function pushOrbitingBody(type, host, distance, angleDeg, overrides = {}) {
+        const def = bodyTypes[type];
+        const mass = Number(overrides.mass ?? def.mass);
+        const angle = angleDeg * Math.PI / 180;
+        const x = host.x + Math.cos(angle) * distance;
+        const y = host.y + Math.sin(angle) * distance;
+        const speed = Math.sqrt((state.G * state.gravityScale * (host.mass + mass)) / Math.max(1, distance)) * (overrides.speedFactor ?? 1);
+        const direction = overrides.retrograde ? -1 : 1;
+        const vx = host.vx - Math.sin(angle) * speed * direction;
+        const vy = host.vy + Math.cos(angle) * speed * direction;
+        const body = createBody(type, x, y, vx, vy, overrides);
+        state.bodies.push(body);
+        return body;
+      }
+
+      function loadPreset(name) {
+        state.bodies = [];
+        state.selectedId = null;
+        state.time = 0;
+        nextId = 1;
+
+        if (name === "solar") {
+          const star = createBody("star", 0, 0, 0, 0, { name: "主序星" });
+          state.bodies.push(star);
+          state.bodies.push(createBody("planet", 130, 0, 0, 1.32, { name: "内行星", mass: 7, radius: 5 }));
+          state.bodies.push(createBody("giant", 245, 0, 0, 1.02, { name: "巨行星", mass: 46, radius: 10 }));
+          state.bodies.push(createBody("comet", -360, -95, 0.32, -0.58, { name: "长周期彗星", mass: 1.2, radius: 3 }));
+        }
+
+        if (name === "solarsystem") {
+          const sun = createBody("star", 0, 0, 0, 0, {
+            name: "太阳",
+            mass: 1800,
+            radius: 18,
+            visual: "star",
+            color: "#ffd15a",
+            glow: "#fff1a8",
+            accent: "#ff8f3d"
+          });
+          state.bodies.push(sun);
+          pushOrbitingBody("planet", sun, 72, -18, { name: "水星", mass: 1.5, radius: 3.2, visual: "mercury", color: "#9c9486", glow: "#ddd0b7", speedFactor: 1.02 });
+          pushOrbitingBody("planet", sun, 102, 34, { name: "金星", mass: 5.0, radius: 5.2, visual: "venus", color: "#d8aa69", glow: "#f4d49b", accent: "#fff0bd", speedFactor: 1.0 });
+          pushOrbitingBody("planet", sun, 134, 88, { name: "地球", mass: 6.2, radius: 5.5, visual: "earth", color: "#4182d9", glow: "#9fd7ff", accent: "#65bf7c", speedFactor: 1.0 });
+          pushOrbitingBody("planet", sun, 174, 140, { name: "火星", mass: 3.2, radius: 4.3, visual: "mars", color: "#c76345", glow: "#f2a077", speedFactor: 1.01 });
+          pushOrbitingBody("comet", sun, 214, 208, { name: "谷神星", mass: 0.55, radius: 2.5, visual: "rocky", color: "#b7afa2", glow: "#e0d8c7", speedFactor: 0.98 });
+          pushOrbitingBody("giant", sun, 292, 262, { name: "木星", mass: 78, radius: 12.2, visual: "gas", color: "#d3a26f", glow: "#f1d1a0", accent: "#fff0c4", tilt: -0.08, speedFactor: 1.0 });
+          pushOrbitingBody("giant", sun, 382, 316, { name: "土星", mass: 56, radius: 10.6, visual: "gas", color: "#d7c08a", glow: "#f6e2a9", accent: "#fff5cf", ring: true, tilt: -0.36, speedFactor: 1.0 });
+          pushOrbitingBody("giant", sun, 482, 18, { name: "天王星", mass: 26, radius: 8.4, visual: "ice", color: "#7fcbd1", glow: "#b9f4f1", accent: "#d9ffff", tilt: 0.18, speedFactor: 1.0 });
+          pushOrbitingBody("giant", sun, 572, 76, { name: "海王星", mass: 30, radius: 8.2, visual: "ice", color: "#456bd8", glow: "#93acff", accent: "#c7d3ff", tilt: -0.12, speedFactor: 1.0 });
+          pushOrbitingBody("comet", sun, 650, 145, { name: "冥王星", mass: 0.7, radius: 2.8, visual: "pluto", color: "#b99a7c", glow: "#e4d2bd", speedFactor: 0.88 });
+        }
+
+        if (name === "binary") {
+          state.bodies.push(createBody("star", -90, 0, 0, -1.03, { name: "双星 A", mass: 420, radius: 13 }));
+          state.bodies.push(createBody("star", 90, 0, 0, 1.03, { name: "双星 B", mass: 420, radius: 13, color: "#ffb877", glow: "#ffe1ac" }));
+          state.bodies.push(createBody("planet", 0, -245, 1.16, 0, { name: "外侧行星", mass: 8, radius: 6 }));
+          state.bodies.push(createBody("comet", -260, 180, -0.84, -0.5, { name: "交换轨道小体", mass: 2, radius: 3 }));
+        }
+
+        if (name === "blackhole") {
+          state.bodies.push(createBody("blackhole", 0, 0, 0, 0, { name: "克尔黑洞", mass: 1900, radius: 16, spin: 0.72 }));
+          state.bodies.push(createBody("star", 230, -18, -0.04, 2.25, { name: "近掠恒星", mass: 95, radius: 10 }));
+          state.bodies.push(createBody("planet", 310, 90, -0.56, 1.54, { name: "受扰行星", mass: 7, radius: 5 }));
+          state.bodies.push(createBody("comet", -360, -160, 1.34, -0.12, { name: "高偏心彗星", mass: 1.5, radius: 3 }));
+        }
+
+        if (name === "pulsar") {
+          state.bodies.push(createBody("pulsar", -42, 0, 0, -0.62, { name: "毫秒脉冲星", mass: 620, radius: 8, spin: 0.96 }));
+          state.bodies.push(createBody("star", 124, 0, 0, 1.56, { name: "伴星", mass: 220, radius: 11 }));
+          state.bodies.push(createBody("planet", 0, 245, -1.22, 0.15, { name: "环绕行星", mass: 6, radius: 5 }));
+        }
+
+        computeAccelerations();
+        state.selectedId = state.bodies[0]?.id ?? null;
+        addEvent(`载入预设：${document.querySelector(`[data-preset="${name}"]`)?.textContent.trim() ?? name}`);
+        resetViewToSystem();
+        updateObjectList();
+        updateSelectedPanel();
+      }
+
+      function exportState() {
+        const payload = {
+          version: 1,
+          time: state.time,
+          view: state.view,
+          settings: {
+            speed: state.speed,
+            gravityScale: state.gravityScale,
+            relativityScale: state.relativityScale,
+            relativity: state.relativity,
+            showTrails: state.showTrails,
+            showField: state.showField,
+            merge: state.merge,
+            warpGrid: state.warpGrid
+          },
+          bodies: state.bodies.map(body => ({
+            id: body.id,
+            type: body.type,
+            name: body.name,
+            x: body.x,
+            y: body.y,
+            vx: body.vx,
+            vy: body.vy,
+            mass: body.mass,
+            radius: body.radius,
+            spin: body.spin,
+            color: body.color,
+            glow: body.glow,
+            visual: body.visual,
+            accent: body.accent,
+            ring: body.ring,
+            tilt: body.tilt,
+            trail: body.trail.slice(-state.trailLimit)
+          }))
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `gravity-sim-${Date.now()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function importState(file) {
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        if (!Array.isArray(payload.bodies)) throw new Error("bad file");
+        state.bodies = payload.bodies
+          .filter(item => bodyTypes[item.type])
+          .map(item => {
+            const body = createBody(item.type, item.x, item.y, item.vx, item.vy, item);
+            body.id = Number(item.id) || body.id;
+            body.trail = Array.isArray(item.trail) ? item.trail : [];
+            return body;
+          });
+        nextId = Math.max(1, ...state.bodies.map(body => body.id + 1));
+        state.time = Number(payload.time) || 0;
+        if (payload.view) {
+          state.view.cx = Number(payload.view.cx) || 0;
+          state.view.cy = Number(payload.view.cy) || 0;
+          state.view.zoom = clamp(Number(payload.view.zoom) || 1, 0.05, 8);
+        }
+        if (payload.settings) {
+          state.relativity = Boolean(payload.settings.relativity);
+          state.showTrails = Boolean(payload.settings.showTrails);
+          state.showField = Boolean(payload.settings.showField);
+          state.merge = Boolean(payload.settings.merge);
+          state.warpGrid = Boolean(payload.settings.warpGrid);
+          els.mergeToggle.checked = state.merge;
+          els.warpGridToggle.checked = state.warpGrid;
+          els.speedSlider.value = clamp(Number(payload.settings.speed) || 1, 0.1, 64);
+          els.gravitySlider.value = clamp(Number(payload.settings.gravityScale) || 1, 0.1, 2.5);
+          els.relativitySlider.value = clamp(Number(payload.settings.relativityScale) || 1.6, 0, 8);
+        }
+        state.selectedId = state.bodies[0]?.id ?? null;
+        computeAccelerations();
+        addEvent("状态已导入");
+        updateControlLabels();
+        updateToggles();
+        updateObjectList();
+        updateSelectedPanel();
+      }
+
+      function handlePointerDown(event) {
+        canvas.setPointerCapture(event.pointerId);
+        const world = screenToWorld(event.clientX, event.clientY);
+        state.pointer.down = true;
+        state.pointer.button = event.button;
+        state.pointer.startWorld = world;
+        state.pointer.currentWorld = world;
+        state.pointer.dragMoved = false;
+
+        if (event.button === 1 || event.button === 2) {
+          state.pointer.panning = true;
+          state.pointer.panStart = { x: event.clientX, y: event.clientY };
+          state.pointer.originalView = { ...state.view };
+          return;
+        }
+
+        const hit = findBodyAt(world);
+        if (hit) {
+          setSelectedBody(hit.id);
+          state.pointer.draggedBodyId = hit.id;
+        } else {
+          state.preview = { x: world.x, y: world.y, end: world };
+        }
+      }
+
+      function handlePointerMove(event) {
+        if (!state.pointer.down) return;
+        const world = screenToWorld(event.clientX, event.clientY);
+        state.pointer.currentWorld = world;
+        const moved = hypot(world.x - state.pointer.startWorld.x, world.y - state.pointer.startWorld.y);
+        state.pointer.dragMoved = state.pointer.dragMoved || moved > 2 / state.view.zoom;
+
+        if (state.pointer.panning) {
+          const dx = (event.clientX - state.pointer.panStart.x) / state.view.zoom;
+          const dy = (event.clientY - state.pointer.panStart.y) / state.view.zoom;
+          state.view.cx = state.pointer.originalView.cx - dx;
+          state.view.cy = state.pointer.originalView.cy - dy;
+          return;
+        }
+
+        if (state.preview) {
+          state.preview.end = world;
+          return;
+        }
+
+        const body = state.bodies.find(item => item.id === state.pointer.draggedBodyId);
+        if (body && state.pointer.dragMoved && !state.running) {
+          body.x = world.x;
+          body.y = world.y;
+          body.trail.length = 0;
+          computeAccelerations();
+          updateSelectedPanel();
+        }
+      }
+
+      function handlePointerUp(event) {
+        const world = screenToWorld(event.clientX, event.clientY);
+        if (state.preview) {
+          const def = selectedTypeDef();
+          const mass = Number(els.massSlider.value);
+          const start = { x: state.preview.x, y: state.preview.y };
+          let velocity;
+          if (state.useAutoOrbit) {
+            velocity = autoOrbitVelocity(start, mass);
+          } else {
+            const dx = world.x - start.x;
+            const dy = world.y - start.y;
+            velocity = {
+              vx: dx * 0.026,
+              vy: dy * 0.026
+            };
+          }
+          const body = createBody(state.selectedType, start.x, start.y, velocity.vx, velocity.vy, {
+            mass,
+            radius: Number(els.radiusSlider.value),
+            spin: Number(els.spinSlider.value),
+            name: `${def.label} ${nextId}`
+          });
+          addBody(body);
+        } else if (!state.pointer.dragMoved) {
+          const hit = findBodyAt(world);
+          if (hit) setSelectedBody(hit.id);
+        }
+
+        state.preview = null;
+        state.pointer.down = false;
+        state.pointer.panning = false;
+        state.pointer.draggedBodyId = null;
+      }
+
+      function handleWheel(event) {
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const before = screenToWorld(event.clientX, event.clientY);
+        const scale = event.deltaY < 0 ? 1.12 : 0.89;
+        state.view.zoom = clamp(state.view.zoom * scale, 0.05, 8);
+        const after = screenToWorld(event.clientX, event.clientY);
+        state.view.cx += before.x - after.x;
+        state.view.cy += before.y - after.y;
+        updateControlLabels();
+      }
+
+      function buildPalette() {
+        paletteEl.innerHTML = "";
+        for (const [type, def] of Object.entries(bodyTypes)) {
+          const button = document.createElement("button");
+          button.className = "body-button";
+          button.dataset.type = type;
+          button.title = def.label;
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.background = def.color;
+          swatch.style.color = def.color;
+          const label = document.createElement("span");
+          label.textContent = def.label;
+          button.append(swatch, label);
+          button.addEventListener("click", () => {
+            state.selectedType = type;
+            updateCreationControlsFromType();
+          });
+          paletteEl.appendChild(button);
+        }
+        updatePaletteButtons();
+      }
+
+      function bindControls() {
+        els.playPause.addEventListener("click", () => {
+          state.running = !state.running;
+          updateToggles();
+        });
+        els.stepOnce.addEventListener("click", () => {
+          integrate(state.baseDt * 4);
+          updateMetrics();
+          updateSelectedPanel();
+        });
+        els.resetView.addEventListener("click", resetViewToSystem);
+        els.clearBodies.addEventListener("click", clearBodies);
+        els.toggleTrails.addEventListener("click", () => {
+          state.showTrails = !state.showTrails;
+          if (!state.showTrails) state.bodies.forEach(body => body.trail.length = 0);
+          updateToggles();
+        });
+        els.toggleField.addEventListener("click", () => {
+          state.showField = !state.showField;
+          updateToggles();
+        });
+        els.toggleRelativity.addEventListener("click", () => {
+          state.relativity = !state.relativity;
+          updateToggles();
+        });
+        els.dragVelocity.addEventListener("click", () => {
+          state.useAutoOrbit = false;
+          updateToggles();
+          updateControlLabels();
+        });
+        els.autoOrbit.addEventListener("click", () => {
+          state.useAutoOrbit = true;
+          updateToggles();
+          updateControlLabels();
+        });
+
+        for (const input of [
+          els.massSlider,
+          els.radiusSlider,
+          els.spinSlider,
+          els.speedSlider,
+          els.gravitySlider,
+          els.relativitySlider,
+          els.trailSlider,
+          els.mergeToggle,
+          els.warpGridToggle
+        ]) {
+          input.addEventListener("input", updateControlLabels);
+        }
+
+        document.querySelectorAll("[data-preset]").forEach(button => {
+          button.addEventListener("click", () => loadPreset(button.dataset.preset));
+        });
+
+        els.zoomOut.addEventListener("click", () => {
+          state.view.zoom = clamp(state.view.zoom * 0.82, 0.05, 8);
+          updateControlLabels();
+        });
+        els.zoomIn.addEventListener("click", () => {
+          state.view.zoom = clamp(state.view.zoom * 1.22, 0.05, 8);
+          updateControlLabels();
+        });
+        els.exportState.addEventListener("click", exportState);
+        els.importStateButton.addEventListener("click", () => els.importState.click());
+        els.importState.addEventListener("change", async () => {
+          const file = els.importState.files?.[0];
+          if (!file) return;
+          try {
+            await importState(file);
+          } catch (error) {
+            addEvent("导入失败");
+          } finally {
+            els.importState.value = "";
+          }
+        });
+
+        canvas.addEventListener("pointerdown", handlePointerDown);
+        canvas.addEventListener("pointermove", handlePointerMove);
+        canvas.addEventListener("pointerup", handlePointerUp);
+        canvas.addEventListener("pointercancel", handlePointerUp);
+        canvas.addEventListener("contextmenu", event => event.preventDefault());
+        canvas.addEventListener("wheel", handleWheel, { passive: false });
+
+        window.addEventListener("resize", () => {
+          resizeCanvas();
+          updateControlLabels();
+        });
+
+        window.addEventListener("keydown", event => {
+          if (event.target && ["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
+          if (event.code === "Space") {
+            event.preventDefault();
+            state.running = !state.running;
+            updateToggles();
+          }
+          if (event.key === "Delete" || event.key === "Backspace") {
+            const selected = getSelectedBody();
+            if (selected) {
+              state.bodies = state.bodies.filter(body => body.id !== selected.id);
+              addEvent(`${selected.name} 已移除`);
+              state.selectedId = state.bodies[0]?.id ?? null;
+              updateObjectList();
+              updateSelectedPanel();
+            }
+          }
+        });
+      }
+
+      function animationLoop(now) {
+        const elapsed = Math.min(0.05, (now - state.lastFrame) / 1000);
+        state.lastFrame = now;
+        if (state.running) {
+          integrate(state.baseDt * state.speed * clamp(elapsed * 60, 0.25, 2));
+        }
+        draw();
+        state.frameCounter++;
+        if (now - state.fpsTimer > 500) {
+          state.fps = state.frameCounter * 1000 / (now - state.fpsTimer);
+          state.frameCounter = 0;
+          state.fpsTimer = now;
+          updateMetrics();
+          updateSelectedPanel();
+          updateControlLabels();
+        }
+        requestAnimationFrame(animationLoop);
+      }
+
+      function init() {
+        resizeCanvas();
+        buildPalette();
+        bindControls();
+        updateCreationControlsFromType();
+        updateToggles();
+        renderEventLog();
+        loadPreset("blackhole");
+        requestAnimationFrame(animationLoop);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
